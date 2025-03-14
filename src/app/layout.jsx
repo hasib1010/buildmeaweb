@@ -1,26 +1,34 @@
-// app/layout.js
-import { Inter } from 'next/font/google';
+// src/app/layout.js
+import { Inter, Poppins } from 'next/font/google';
 import './globals.css';
+import { AuthProvider } from '@/contexts/AuthContext';
 
-// Initialize the Inter font
-const inter = Inter({ subsets: ['latin'] });
+// Initialize fonts
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
 
-// Metadata for the application
+const poppins = Poppins({
+  subsets: ['latin'],
+  weight: ['500', '600', '700'],
+  variable: '--font-poppins',
+  display: 'swap',
+});
+
 export const metadata = {
-  title: 'Website Builder Service',
-  description: 'Professional website building plans for businesses and individuals',
+  title: 'Website Building Platform',
+  description: 'Build your dream website with our interactive 3D platform',
 };
 
-// Root layout component that wraps all pages
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        {/* This is where Header component would go */}
-        <main className="min-h-screen">
+    <html lang="en" className={`${inter.variable} ${poppins.variable}`}>
+      <body>
+        <AuthProvider>
           {children}
-        </main>
-        {/* This is where Footer component would go */}
+        </AuthProvider>
       </body>
     </html>
   );

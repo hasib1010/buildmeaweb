@@ -1,116 +1,95 @@
 // app/api/orders/route.js
 import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth';
+import dbConnect from '@/lib/dbConnect';
+import Order from '@/models/Order';
 
-// This would typically connect to a database
-// For now, we'll use the same orders array as in checkout.js
-// In a real app, these would be stored in a database
-const orders = [];
-
-// Get all orders (admin endpoint, would require authentication)
 export async function GET(request) {
-  // In a real app, this would require authentication/authorization
-  // And would filter orders based on the authenticated user
-  
-  return NextResponse.json({
-    success: true,
-    orders
-  });
-}
-
-// Update an order status
-export async function PUT(request) {
   try {
-    const body = await request.json();
-    const { orderId, status, notes } = body;
+    // Connect to database
+    await dbConnect();
     
-    if (!orderId || !status) {
+    // Authenticate request
+    const session = await getSession(request);
+    if (!session) {
       return NextResponse.json(
-        { success: false, message: 'Order ID and status are required' },
-        { status: 400 }
+        { success: false, message: 'Authentication required' },
+        { status: 401 }
       );
     }
     
-    // Find order index (would be a database query in real app)
-    const orderIndex = orders.findIndex(o => o.id === orderId);
+    // Get query parameters
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const page = parseInt(searchParams.get('page') || '1');
     
-    if (orderIndex === -1) {
-      return NextResponse.json(
-        { success: false, message: 'Order not found' },
-        { status: 404 }
-      );
+    // Build query
+    const query = { user: session.userId };
+    if (status) {
+      query.status = status;
     }
     
-    // Valid status values
-    const validStatuses = [
-      'paid', 
-      'processing', 
-      'in_review', 
-      'completed', 
-      'canceled'
-    ];
-    
-    if (!validStatuses.includes(status)) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid status value' },
-        { status: 400 }
-      );
+    // Check if user is admin to get all orders
+    if (session.role === 'admin') {
+      // If admin, remove user filter to get all orders
+      delete query.user;
+      
+      // Add user email filter if provided
+      const userEmail = searchParams.get('userEmail');
+      if (userEmail) {
+        const user = await User.findOne({ email: userEmail });
+        if (user) {
+          query.user = user._id;
+        }
+      }
     }
     
-    // Update the order
-    orders[orderIndex] = {
-      ...orders[orderIndex],
-      status,
-      notes: notes || orders[orderIndex].notes,
-      updatedAt: new Date().toISOString()
-    };
+    // Fetch orders with pagination
+    const skip = (page - 1) * limit;
+    const total = await Order.countDocuments(query);
+    
+    const orders = await Order.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate('user', 'name email');
     
     return NextResponse.json({
       success: true,
-      order: orders[orderIndex],
-      message: 'Order updated successfully'
+      orders: orders.map(order => ({
+        id: order._id,
+        user: {
+          id: order.user._id,
+          name: order.user.name,
+          email: order.user.email
+        },
+        plan: order.plan,
+        price: order.price,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+        requirements: order.requirements,
+        progress: order.progress,
+        estimatedDeliveryDate: order.estimatedDeliveryDate,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt
+      })),
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit)
+      }
     });
-    
   } catch (error) {
-    console.error('Order update error:', error);
+    console.error('Get orders error:', error);
     return NextResponse.json(
-      { success: false, message: 'An error occurred while updating the order' },
+      {
+        success: false,
+        message: 'Server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      },
       { status: 500 }
     );
   }
-}
-
-// Cancel an order
-export async function DELETE(request) {
-  const { searchParams } = new URL(request.url);
-  const orderId = searchParams.get('orderId');
-  
-  if (!orderId) {
-    return NextResponse.json(
-      { success: false, message: 'Order ID is required' },
-      { status: 400 }
-    );
-  }
-  
-  // Find order index
-  const orderIndex = orders.findIndex(o => o.id === orderId);
-  
-  if (orderIndex === -1) {
-    return NextResponse.json(
-      { success: false, message: 'Order not found' },
-      { status: 404 }
-    );
-  }
-  
-  // In a real app you might not actually delete, but mark as canceled
-  // Here we're just setting status to canceled
-  orders[orderIndex] = {
-    ...orders[orderIndex],
-    status: 'canceled',
-    updatedAt: new Date().toISOString()
-  };
-  
-  return NextResponse.json({
-    success: true,
-    message: 'Order canceled successfully'
-  });
 }
