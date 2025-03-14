@@ -72,8 +72,23 @@ function CursorFollowingModel({ url, scale = 1, position = [0, 0, 0], rotation =
 export default function ThreeSceneContent() {
     const [isLoaded, setIsLoaded] = useState(false);
     const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
+    const [isMobile, setIsMobile] = useState(false);
 
+    // Detect mobile device
     useEffect(() => {
+        const checkMobile = () => {
+            const isTouchDevice = 'maxTouchPoints' in navigator && navigator.maxTouchPoints > 0;
+            setIsMobile(isTouchDevice);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    // Track cursor position (only on desktop)
+    useEffect(() => {
+        if (isMobile) return; // Skip if mobile
+
         const handleMouseMove = (e) => {
             setCursorPosition({
                 x: (e.clientX / window.innerWidth) * 2 - 1,
@@ -83,23 +98,23 @@ export default function ThreeSceneContent() {
 
         window.addEventListener('mousemove', handleMouseMove);
         return () => window.removeEventListener('mousemove', handleMouseMove);
-    }, []);
+    }, [isMobile]);
 
-    const modelUrl = "/laptop.glb";
+    const modelUrl = "/lapto.glb";
 
     return (
         <>
             <div
                 className="w-full h-full"
                 style={{
-                    cursor: 'none',
-                    touchAction: 'none'
+                    cursor: isMobile ? 'auto' : 'none', // Restore default cursor on mobile
+                    touchAction: isMobile ? 'auto' : 'none' // Allow touch actions on mobile
                 }}
             >
                 <Canvas
                     shadows
                     dpr={[1, 2]}
-                    camera={{ position: [0, 0, 12], fov: 40 }} // Reduced from 300 to 12
+                    camera={{ position: [0, 0, 300], fov: 40 }}
                     onCreated={(state) => {
                         state.gl.setClearColor(0x000000, 0);
                         setIsLoaded(true);
@@ -129,7 +144,7 @@ export default function ThreeSceneContent() {
                         >
                             <CursorFollowingModel
                                 url={modelUrl}
-                                scale={1}
+                                scale={0.5}
                                 position={[0, 0, 0]}
                                 rotation={[0, 0, 0]}
                             />
@@ -147,21 +162,24 @@ export default function ThreeSceneContent() {
                     </Suspense>
                 </Canvas>
 
-                <div
-                    style={{
-                        position: 'fixed',
-                        width: '20px',
-                        height: '20px',
-                        borderRadius: '50%',
-                        border: '2px solid white',
-                        transform: 'translate(-50%, -50%)',
-                        pointerEvents: 'none',
-                        left: `${(cursorPosition.x + 1) * window.innerWidth / 2}px`,
-                        top: `${(-cursorPosition.y + 1) * window.innerHeight / 2}px`,
-                        zIndex: 1000,
-                        mixBlendMode: 'difference'
-                    }}
-                />
+                {/* Render custom cursor only on desktop */}
+                {!isMobile && (
+                    <div
+                        style={{
+                            position: 'fixed',
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            border: '2px solid white',
+                            transform: 'translate(-50%, -50%)',
+                            pointerEvents: 'none',
+                            left: `${(cursorPosition.x + 1) * window.innerWidth / 2}px`,
+                            top: `${(-cursorPosition.y + 1) * window.innerHeight / 2}px`,
+                            zIndex: 1000,
+                            mixBlendMode: 'difference'
+                        }}
+                    />
+                )}
             </div>
         </>
     );
