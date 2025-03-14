@@ -3,16 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-
-// Import GSAP directly in the page component
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import ThreeScene from '@/components/ThreeScene';
-
-// Register GSAP plugins
-if (typeof window !== 'undefined') {
-  gsap.registerPlugin(ScrollTrigger);
-}
 
 // Animated logo component
 const AnimatedLogo = () => {
@@ -198,14 +189,10 @@ export default function Home() {
   const processRef = useRef(null);
   const portfolioRef = useRef(null);
 
-  // State for mobile menu
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Toggle mobile menu function
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
-
-    // Prevent body scroll when menu is open
     if (!mobileMenuOpen) {
       document.body.style.overflow = 'hidden';
     } else {
@@ -214,100 +201,109 @@ export default function Home() {
   };
 
   useEffect(() => {
-    // Clean up function to restore scroll when component unmounts
+    // Clean up scroll behavior on unmount
     return () => {
       document.body.style.overflow = 'auto';
     };
   }, []);
 
   useEffect(() => {
-    // Make sure we're in the browser and GSAP is available
-    if (typeof window === 'undefined' || !gsap) return;
+    // Dynamically import GSAP and ScrollTrigger only on the client-side
+    async function initGSAP() {
+      const gsap = (await import('gsap')).default;
+      const { ScrollTrigger } = await import('gsap/ScrollTrigger');
 
-    console.log("Initializing animations...");
+      // Register the ScrollTrigger plugin
+      gsap.registerPlugin(ScrollTrigger);
 
-    // Delay to ensure DOM is fully loaded
-    const timer = setTimeout(() => {
-      try {
-        // Logo animation
-        gsap.from(logoRef.current, {
-          y: -50,
-          opacity: 0,
-          duration: 1,
-          ease: 'elastic.out(1, 0.5)'
-        });
+      console.log("Initializing animations...");
 
-        // Hero section animations
-        gsap.from('.hero-title', {
-          y: 50,
-          opacity: 0,
-          duration: 0.8,
-          ease: 'power2.out'
-        });
+      // Delay to ensure DOM is fully loaded
+      const timer = setTimeout(() => {
+        try {
+          // Logo animation
+          gsap.from(logoRef.current, {
+            y: -50,
+            opacity: 0,
+            duration: 1,
+            ease: 'elastic.out(1, 0.5)',
+          });
 
-        gsap.from('.hero-description', {
-          y: 30,
-          opacity: 0,
-          duration: 0.8,
-          delay: 0.3,
-          ease: 'power2.out'
-        });
-
-        gsap.from('.hero-buttons', {
-          y: 30,
-          opacity: 0,
-          duration: 0.8,
-          delay: 0.6,
-          ease: 'power2.out'
-        });
-
-        // Features section animations
-        const featureCards = document.querySelectorAll('.feature-card-wrapper');
-        featureCards.forEach((card, index) => {
-          gsap.from(card, {
+          // Hero section animations
+          gsap.from('.hero-title', {
             y: 50,
             opacity: 0,
-            duration: 0.6,
-            delay: 0.1 * index,
+            duration: 0.8,
             ease: 'power2.out',
-            scrollTrigger: {
-              trigger: featuresRef.current,
-              start: 'top 80%',
-              toggleActions: 'play none none none'
-            }
           });
-        });
 
-        // Plans section animations
-        const planCards = document.querySelectorAll('.plan-card-wrapper');
-        planCards.forEach((card, index) => {
-          gsap.from(card, {
-            y: 50,
+          gsap.from('.hero-description', {
+            y: 30,
             opacity: 0,
-            duration: 0.6,
-            delay: 0.1 * index,
+            duration: 0.8,
+            delay: 0.3,
             ease: 'power2.out',
-            scrollTrigger: {
-              trigger: plansRef.current,
-              start: 'top 80%',
-              toggleActions: 'play none none none'
-            }
           });
-        });
 
-        console.log("Animations applied successfully!");
-      } catch (error) {
-        console.error("Error applying animations:", error);
-      }
-    }, 500);
+          gsap.from('.hero-buttons', {
+            y: 30,
+            opacity: 0,
+            duration: 0.8,
+            delay: 0.6,
+            ease: 'power2.out',
+          });
 
-    return () => {
-      clearTimeout(timer);
-      // Clean up ScrollTrigger instances
-      if (ScrollTrigger) {
-        ScrollTrigger.getAll().forEach(trigger => trigger.kill());
-      }
-    };
+          // Features section animations
+          const featureCards = document.querySelectorAll('.feature-card-wrapper');
+          featureCards.forEach((card, index) => {
+            gsap.from(card, {
+              y: 50,
+              opacity: 0,
+              duration: 0.6,
+              delay: 0.1 * index,
+              ease: 'power2.out',
+              scrollTrigger: {
+                trigger: featuresRef.current,
+                start: 'top 80%',
+                toggleActions: 'play none none none',
+              },
+            });
+          });
+
+          // Plans section animations
+          const planCards = document.querySelectorAll('.plan-card-wrapper');
+          planCards.forEach((card, index) => {
+            gsap.from(card, {
+              y: 50,
+              opacity: 0,
+              duration: 0.6,
+              delay: 0.1 * index,
+              ease: 'power2.out',
+              scrollTrigger: {
+                trigger: plansRef.current,
+                start: 'top 80%',
+                toggleActions: 'play none none none',
+              },
+            });
+          });
+
+          console.log("Animations applied successfully!");
+        } catch (error) {
+          console.error("Error applying animations:", error);
+        }
+      }, 500);
+
+      // Cleanup
+      return () => {
+        clearTimeout(timer);
+        ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
+      };
+    }
+
+    // Only run the GSAP initialization in the browser
+    if (typeof window !== 'undefined') {
+      initGSAP();
+    }
   }, []);
 
   // Features data
@@ -852,7 +848,7 @@ export default function Home() {
 
             {/* Three.js */}
             <div className="flex flex-col items-center">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-purple-900/30 rounded-full flex items-center justify-center text-purple-400 hover:scale-110 transition-transform duration-300">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-purple-900/30 rounded-full flex items-center justify-center text-purple-400 hover:scale-110 transition-transform duration-300">
                 <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 sm:w-10 sm:h-10">
                   <path d="M12.33,17.32c-5.7,0-10.33-2.09-10.33-4.67c0-1.73,1.67-3.27,4.25-4.07 C6.13,9.73,6.25,11,6.25,12c0,4.07,2.73,7.8,6.69,8.95C12.72,20.97,12.5,20.97,12.33,17.32z M11.89,0 c6.81,0,12.33,5.52,12.33,12.33c0,5.88-4.11,10.79-9.6,12.04c-0.35-0.35-1.14-1.76-0.44-3.67c0.35-0.99,1.49-6.5,1.49-6.5 s0.41-0.82,0.41-2.03c0-1.9-1.08-3.32-2.46-3.32c-1.17,0-1.72,0.88-1.72,1.92c0,1.17,0.76,2.93,1.14,4.54 c0.32,1.37-0.7,2.5-2.06,2.5c-2.49,0-4.4-3.2-4.4-7c0-3.67,2.47-6.43,6.96-6.43c4.67,0,7.73,3.38,7.73,7.05 c0,4.84-2.69,8.46-6.67,8.46c-1.34,0-2.59-0.72-3.02-1.52c0,0-0.73,2.96-0.9,3.53c-0.41,1.49-1.49,3.32-2.17,4.42 c1.17,0.35,2.38,0.52,3.67,0.52c6.81,0,12.33-5.52,12.33-12.33C24.22,5.52,18.7,0,11.89,0z" />
                 </svg>
@@ -879,28 +875,28 @@ export default function Home() {
                 <form>
                   <div className="mb-6">
                     <label htmlFor="name" className="block text-gray-300 mb-2 text-sm sm:text-base">Your Name</label>
-                    <input 
-                      type="text" 
-                      id="name" 
+                    <input
+                      type="text"
+                      id="name"
                       className="w-full px-4 py-3 bg-gray-900/90 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white text-sm sm:text-base"
                       placeholder="John Doe"
                     />
                   </div>
-                  
+
                   <div className="mb-6">
                     <label htmlFor="email" className="block text-gray-300 mb-2 text-sm sm:text-base">Email Address</label>
-                    <input 
-                      type="email" 
-                      id="email" 
+                    <input
+                      type="email"
+                      id="email"
                       className="w-full px-4 py-3 bg-gray-900/90 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white text-sm sm:text-base"
                       placeholder="you@example.com"
                     />
                   </div>
-                  
+
                   <div className="mb-6">
                     <label htmlFor="project" className="block text-gray-300 mb-2 text-sm sm:text-base">Project Type</label>
-                    <select 
-                      id="project" 
+                    <select
+                      id="project"
                       className="w-full px-4 py-3 bg-gray-900/90 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white text-sm sm:text-base"
                     >
                       <option value="" disabled selected>Select your project type</option>
@@ -910,33 +906,33 @@ export default function Home() {
                       <option value="other">Other</option>
                     </select>
                   </div>
-                  
+
                   <div className="mb-6">
                     <label htmlFor="message" className="block text-gray-300 mb-2 text-sm sm:text-base">Your Message</label>
-                    <textarea 
-                      id="message" 
-                      rows="4" 
+                    <textarea
+                      id="message"
+                      rows="4"
                       className="w-full px-4 py-3 bg-gray-900/90 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white text-sm sm:text-base"
                       placeholder="Tell us about your project..."
                     ></textarea>
                   </div>
-                  
-                  <button 
-                    type="submit" 
+
+                  <button
+                    type="submit"
                     className="w-full px-6 py-3 sm:py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/30 hover:scale-105 text-sm sm:text-base"
                   >
                     Send Message
                   </button>
                 </form>
               </div>
-              
+
               <div className="flex flex-col justify-center">
                 <div className="mb-8">
                   <h3 className="text-xl sm:text-2xl font-bold mb-4 text-white">Contact Information</h3>
                   <p className="text-sm sm:text-base text-gray-400 mb-6">
                     Reach out to us directly or fill out the form and we'll get back to you within 24 hours.
                   </p>
-                  
+
                   <div className="space-y-4">
                     <div className="flex items-start">
                       <div className="w-10 h-10 bg-purple-900/30 rounded-full flex items-center justify-center text-purple-400 mr-4">
@@ -949,7 +945,7 @@ export default function Home() {
                         <p className="text-gray-400 text-sm sm:text-base">hello@buildmeaweb.com</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-start">
                       <div className="w-10 h-10 bg-purple-900/30 rounded-full flex items-center justify-center text-purple-400 mr-4">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -961,7 +957,7 @@ export default function Home() {
                         <p className="text-gray-400 text-sm sm:text-base">(555) 123-4567</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-start">
                       <div className="w-10 h-10 bg-purple-900/30 rounded-full flex items-center justify-center text-purple-400 mr-4">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -976,7 +972,7 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="p-6 bg-black/50 rounded-xl border border-gray-800">
                   <h3 className="text-lg sm:text-xl font-bold mb-4 text-white">Business Hours</h3>
                   <ul className="space-y-2">
@@ -1004,13 +1000,13 @@ export default function Home() {
       <section className="py-16 sm:py-24 px-4 relative overflow-hidden">
         {/* Gradient background */}
         <div className="absolute inset-0 bg-gradient-to-r from-purple-900 to-blue-900 opacity-90"></div>
-        
+
         {/* Decorative elements */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
           <div className="absolute top-0 right-0 w-64 sm:w-96 h-64 sm:h-96 bg-white rounded-full filter blur-[80px] opacity-10"></div>
           <div className="absolute bottom-0 left-0 w-64 sm:w-96 h-64 sm:h-96 bg-white rounded-full filter blur-[80px] opacity-10"></div>
         </div>
-        
+
         <div className="container mx-auto text-center max-w-3xl relative z-10">
           <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-6">Ready to Create Your Perfect Website?</h2>
           <p className="text-base sm:text-xl mb-8">
@@ -1085,7 +1081,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-        
+
         <div className="container mx-auto text-center text-gray-500 pt-8 border-t border-gray-800">
           <p className="text-sm sm:text-base">© {new Date().getFullYear()} BUILDMEAWEB. All rights reserved.</p>
           <div className="mt-4 flex flex-wrap justify-center gap-4 sm:gap-6 text-sm sm:text-base">
@@ -1094,10 +1090,10 @@ export default function Home() {
             <a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Cookies</a>
           </div>
         </div>
-        
+
         {/* Back to top button */}
-        <a 
-          href="#home" 
+        <a
+          href="#home"
           className="fixed bottom-6 right-6 bg-purple-600 hover:bg-purple-700 text-white w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 z-50"
           aria-label="Back to top"
         >
