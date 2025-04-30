@@ -1,8 +1,8 @@
-// src/contexts/AuthContext.js
+// src/contexts/AuthContext.js - Fixed version
 'use client';
 
 import { createContext, useContext, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import axios from 'axios';
 
 // Create auth context
@@ -15,13 +15,46 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const [verificationRequired, setVerificationRequired] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   
   const router = useRouter();
+  const pathname = usePathname();
+  
+  // Auth routes - redirect to dashboard if user is logged in
+  const authRoutes = ['/', '/login', '/register', '/forgot-password', '/reset-password'];
+  
+  // Protected routes - redirect to login if user is not logged in
+  const protectedRoutes = [
+    '/dashboard',
+    '/profile',
+    '/orders',
+    '/create-website',
+    '/checkout',
+    '/order-website'
+  ];
   
   // Load user on initial load
   useEffect(() => {
     loadUser();
   }, []);
+  
+  // Handle redirects based on authentication status - but only for client-side navigation
+  useEffect(() => {
+    if (!loading && initialLoadComplete) {
+      // Skip redirection on initial page load - let the middleware handle that
+      if (user) {
+        // User is authenticated, redirect from auth routes
+        if (authRoutes.includes(pathname)) {
+          router.push('/dashboard');
+        }
+      } else {
+        // User is not authenticated, redirect from protected routes
+        if (protectedRoutes.some(route => pathname.startsWith(route))) {
+          router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
+        }
+      }
+    }
+  }, [user, loading, pathname, router, initialLoadComplete]);
   
   // Function to fetch current user data
   const loadUser = async () => {
@@ -39,6 +72,7 @@ export const AuthProvider = ({ children }) => {
       console.error('Error loading user:', error);
     } finally {
       setLoading(false);
+      setInitialLoadComplete(true);
     }
   };
   
@@ -72,7 +106,7 @@ export const AuthProvider = ({ children }) => {
   };
   
   // Login user
-  const login = async (email, password) => {
+  const login = async (email, password, redirectUrl = '/dashboard') => {
     try {
       setLoading(true);
       setError(null);
@@ -84,8 +118,13 @@ export const AuthProvider = ({ children }) => {
       });
       
       if (res.data.success) {
-        setUser(res.data.user);
-        router.push('/dashboard');
+        await loadUser(); // Reload user data after login
+        
+        // Delay the redirect slightly to ensure cookie is set
+        setTimeout(() => {
+          router.push(redirectUrl);
+        }, 100);
+        
         return true;
       }
     } catch (error) {
@@ -115,7 +154,7 @@ export const AuthProvider = ({ children }) => {
       await axios.post('/api/auth/logout');
       
       setUser(null);
-      router.push('/');
+      router.push('/login');
     } catch (error) {
       console.error('Logout error:', error);
     } finally {

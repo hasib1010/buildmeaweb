@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.758.0",
+    "@lottiefiles/dotlottie-react": "^0.13.5",
     "@react-three/drei": "^10.0.4",
     "@react-three/fiber": "^9.1.0",
     "@splinetool/react-spline": "^4.0.0",
@@ -17,17 +19,22 @@
     "bcryptjs": "^3.0.2",
     "crypto": "^1.0.1",
     "formik": "^2.4.6",
-    "gsap": "^3.12.7",
+    "gsap": "^3.13.0",
+    "jose": "^6.0.10",
     "jsonwebtoken": "^9.0.2",
+    "lottie-react": "^2.4.1",
+    "lucide-react": "^0.503.0",
     "mongoose": "^8.12.1",
-    "next": "15.2.2",
+    "next": "^15.2.2",
     "next-transpile-modules": "^10.0.1",
     "nodemailer": "^6.10.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-fast-marquee": "^1.6.5",
     "react-hot-toast": "^2.5.2",
     "react-icons": "^5.5.0",
     "stripe": "^17.7.0",
+    "uuid": "^11.1.0",
     "yup": "^1.6.1"
   },
   "devDependencies": {

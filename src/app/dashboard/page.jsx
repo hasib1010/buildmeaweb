@@ -4,74 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { gsap } from 'gsap';
 import Navbar from '@/components/ui/Navbar';
-
-// Sample website data
-const sampleWebsites = [
-  {
-    id: 'web1',
-    name: 'Portfolio Site',
-    template: 'Personal',
-    status: 'published',
-    lastEdited: '2023-11-15T14:23:00Z',
-    url: 'portfolio-example.com',
-    thumbnail: '/api/placeholder/300/200'
-  },
-  {
-    id: 'web2',
-    name: 'Coffee Shop',
-    template: 'Business',
-    status: 'draft',
-    lastEdited: '2023-11-10T09:15:00Z',
-    url: 'coffee-example.com',
-    thumbnail: '/api/placeholder/300/200'
-  }
-];
-
-// Sample orders data
-const sampleOrders = [
-  {
-    id: 'order1',
-    name: 'E-Commerce Website',
-    plan: 'Elite',
-    status: 'in-progress',
-    progress: 65,
-    orderedDate: '2023-11-01T10:30:00Z',
-    deliveryDate: '2023-12-10T10:30:00Z',
-    thumbnail: '/api/placeholder/300/200'
-  },
-  {
-    id: 'order2',
-    name: 'Photography Portfolio',
-    plan: 'Growth',
-    status: 'pending',
-    progress: 20,
-    orderedDate: '2023-11-12T14:45:00Z',
-    deliveryDate: '2023-12-02T14:45:00Z',
-    thumbnail: '/api/placeholder/300/200'
-  }
-];
-
-// Sample meetings data
-const sampleMeetings = [
-  {
-    id: 'meeting1',
-    title: 'Website Design Review',
-    date: '2023-11-20T15:00:00Z',
-    duration: 45, // minutes
-    developer: 'Alex Johnson',
-    status: 'scheduled'
-  },
-  {
-    id: 'meeting2',
-    title: 'Requirements Gathering',
-    date: '2023-11-25T11:00:00Z',
-    duration: 60, // minutes
-    developer: 'Sarah Williams',
-    status: 'scheduled'
-  }
-];
 
 export default function Dashboard() {
   const { user, loading } = useAuth();
@@ -80,7 +13,14 @@ export default function Dashboard() {
   const [websites, setWebsites] = useState([]);
   const [orders, setOrders] = useState([]);
   const [meetings, setMeetings] = useState([]);
+  const [stats, setStats] = useState({
+    totalWebsites: 0,
+    activeOrders: 0,
+    upcomingMeetings: 0,
+    subscription: 'none'
+  });
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   
   // Redirect if not authenticated
@@ -90,66 +30,43 @@ export default function Dashboard() {
     }
   }, [user, loading, router]);
   
-  // Fetch data
+  // Fetch data from API
   useEffect(() => {
-    // In a real app, you would fetch data from the API
-    const fetchData = async () => {
+    const fetchDashboardData = async () => {
+      if (!user) return;
+      
       try {
         setIsLoading(true);
-        // Simulate API calls
-        await new Promise(resolve => setTimeout(resolve, 800));
-        setWebsites(sampleWebsites);
-        setOrders(sampleOrders);
-        setMeetings(sampleMeetings);
+        setError(null);
+        
+        const response = await fetch('/api/dashboard');
+        const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error(data.message || 'Failed to fetch dashboard data');
+        }
+        
+        setWebsites(data.websites || []);
+        setOrders(data.orders || []);
+        setMeetings(data.meetings || []);
+        setStats(data.stats || {
+          totalWebsites: 0,
+          activeOrders: 0,
+          upcomingMeetings: 0,
+          subscription: 'none'
+        });
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching dashboard data:', error);
+        setError(error.message);
       } finally {
         setIsLoading(false);
       }
     };
     
     if (user) {
-      fetchData();
+      fetchDashboardData();
     }
   }, [user]);
-  
-  // GSAP animations
-  useEffect(() => {
-    if (!isLoading) {
-      // Animate dashboard elements
-      gsap.from('.dashboard-header', {
-        y: -20,
-        opacity: 0,
-        duration: 0.6,
-        ease: 'power3.out'
-      });
-      
-      gsap.from('.dashboard-stats', {
-        y: 20,
-        opacity: 0,
-        duration: 0.6,
-        delay: 0.2,
-        ease: 'power3.out'
-      });
-      
-      gsap.from('.tabs', {
-        y: 20,
-        opacity: 0,
-        duration: 0.6,
-        delay: 0.3,
-        ease: 'power3.out'
-      });
-      
-      gsap.from('.card-item', {
-        y: 30,
-        opacity: 0,
-        duration: 0.5,
-        stagger: 0.1,
-        delay: 0.4,
-        ease: 'power3.out'
-      });
-    }
-  }, [isLoading, activeTab]);
   
   // Format date display
   const formatDate = (dateString) => {
@@ -161,6 +78,43 @@ export default function Dashboard() {
   const formatTime = (dateString) => {
     const options = { hour: '2-digit', minute: '2-digit' };
     return new Date(dateString).toLocaleTimeString(undefined, options);
+  };
+  
+  // Handle schedule meeting form submission
+  const handleScheduleMeeting = async (formData) => {
+    try {
+      setIsLoading(true);
+      
+      const response = await fetch('/api/meetings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+      
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to schedule meeting');
+      }
+      
+      // Add the new meeting to the list
+      setMeetings([data.meeting, ...meetings]);
+      setStats({
+        ...stats,
+        upcomingMeetings: stats.upcomingMeetings + 1
+      });
+      
+      setShowScheduleModal(false);
+      // You could add a success toast notification here
+      alert('Meeting scheduled successfully!');
+    } catch (error) {
+      console.error('Error scheduling meeting:', error);
+      alert(`Error scheduling meeting: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   if (loading || !user) {
@@ -180,7 +134,7 @@ export default function Dashboard() {
       
       <div className="container mx-auto px-4 pt-32 pb-16">
         {/* Dashboard Header */}
-        <div className="dashboard-header flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold mb-2">
               Welcome back, {user.name}!
@@ -206,27 +160,41 @@ export default function Dashboard() {
         </div>
         
         {/* Dashboard Stats */}
-        <div className="dashboard-stats grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-gray-800 bg-opacity-50 rounded-xl border border-gray-700 p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-gray-400 mb-1">Websites</h3>
-            <p className="text-3xl font-bold">{websites.length}</p>
+            <p className="text-3xl font-bold">{stats.totalWebsites}</p>
           </div>
           <div className="bg-gray-800 bg-opacity-50 rounded-xl border border-gray-700 p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-gray-400 mb-1">Active Orders</h3>
-            <p className="text-3xl font-bold">{orders.length}</p>
+            <p className="text-3xl font-bold">{stats.activeOrders}</p>
           </div>
           <div className="bg-gray-800 bg-opacity-50 rounded-xl border border-gray-700 p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-gray-400 mb-1">Upcoming Meetings</h3>
-            <p className="text-3xl font-bold">{meetings.length}</p>
+            <p className="text-3xl font-bold">{stats.upcomingMeetings}</p>
           </div>
           <div className="bg-gray-800 bg-opacity-50 rounded-xl border border-gray-700 p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-gray-400 mb-1">Subscription</h3>
-            <p className="text-3xl font-bold">{user.subscription?.plan || 'None'}</p>
+            <p className="text-3xl font-bold capitalize">{stats.subscription}</p>
           </div>
         </div>
         
+        {/* Error message if any */}
+        {error && (
+          <div className="mb-8 bg-red-500 bg-opacity-20 border border-red-500 rounded-lg p-4 text-red-100">
+            <p className="font-medium">Error loading dashboard data:</p>
+            <p>{error}</p>
+            <button 
+              className="mt-2 px-4 py-1 bg-red-600 rounded text-sm font-medium"
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+        
         {/* Tabs Navigation */}
-        <div className="tabs flex border-b border-gray-700 mb-8">
+        <div className="flex border-b border-gray-700 mb-8">
           <button
             className={`py-3 px-6 font-medium ${activeTab === 'websites' ? 'text-white border-b-2 border-blue-500' : 'text-gray-400 hover:text-gray-300'}`}
             onClick={() => setActiveTab('websites')}
@@ -262,7 +230,7 @@ export default function Dashboard() {
                     <h2 className="text-2xl font-bold">Your Websites</h2>
                     <button 
                       className="text-sm px-4 py-2 bg-blue-600 rounded-lg text-white font-medium hover:bg-blue-700 transition-colors"
-                      onClick={() => router.push('/order-website')}
+                      onClick={() => router.push('/create-website')}
                     >
                       + Create New
                     </button>
@@ -273,7 +241,7 @@ export default function Dashboard() {
                       {websites.map((website) => (
                         <div 
                           key={website.id} 
-                          className="card-item bg-gray-800 bg-opacity-50 rounded-xl border border-gray-700 overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+                          className="bg-gray-800 bg-opacity-50 rounded-xl border border-gray-700 overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
                         >
                           <div className="relative aspect-video">
                             <img 
@@ -336,7 +304,7 @@ export default function Dashboard() {
                       
                       {/* Create New Website Card */}
                       <div 
-                        className="card-item bg-gray-800 bg-opacity-30 rounded-xl border border-gray-700 border-dashed overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 flex flex-col items-center justify-center cursor-pointer h-72"
+                        className="bg-gray-800 bg-opacity-30 rounded-xl border border-gray-700 border-dashed overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 flex flex-col items-center justify-center cursor-pointer h-72"
                         onClick={() => router.push('/create-website')}
                       >
                         <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center mb-4">
@@ -388,7 +356,7 @@ export default function Dashboard() {
                       {orders.map((order) => (
                         <div 
                           key={order.id} 
-                          className="card-item bg-gray-800 bg-opacity-50 rounded-xl border border-gray-700 overflow-hidden shadow-lg"
+                          className="bg-gray-800 bg-opacity-50 rounded-xl border border-gray-700 overflow-hidden shadow-lg"
                         >
                           <div className="p-6">
                             <div className="flex flex-col md:flex-row md:items-center justify-between mb-4">
@@ -396,21 +364,27 @@ export default function Dashboard() {
                                 <div className="flex items-center mb-2">
                                   <h3 className="text-xl font-bold mr-3">{order.name}</h3>
                                   <span className={`px-2 py-1 rounded-md text-xs font-semibold ${
-                                    order.status === 'in-progress' 
+                                    order.status === 'in-progress' || order.status === 'development' || order.status === 'design'
                                       ? 'bg-blue-500 bg-opacity-90' 
                                       : order.status === 'completed'
                                         ? 'bg-green-500 bg-opacity-90'
-                                        : 'bg-yellow-500 bg-opacity-90'
+                                        : order.status === 'cancelled'
+                                          ? 'bg-red-500 bg-opacity-90'
+                                          : 'bg-yellow-500 bg-opacity-90'
                                   }`}>
-                                    {order.status === 'in-progress' 
-                                      ? 'In Progress' 
-                                      : order.status === 'completed'
-                                        ? 'Completed'
-                                        : 'Pending'}
+                                    {order.status === 'development' 
+                                      ? 'In Development' 
+                                      : order.status === 'design'
+                                        ? 'In Design'
+                                        : order.status === 'requirements'
+                                          ? 'Requirements'
+                                          : order.status === 'revision'
+                                            ? 'In Revision'
+                                            : order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                                   </span>
                                 </div>
                                 <p className="text-gray-400 text-sm">
-                                  Plan: <span className="font-medium text-white">{order.plan}</span>
+                                  Plan: <span className="font-medium text-white capitalize">{order.plan}</span>
                                 </p>
                               </div>
                               <div className="mt-4 md:mt-0">
@@ -421,7 +395,7 @@ export default function Dashboard() {
                                   </div>
                                   <div className="text-right">
                                     <p className="text-gray-400">Delivery by</p>
-                                    <p className="font-medium">{formatDate(order.deliveryDate)}</p>
+                                    <p className="font-medium">{order.deliveryDate ? formatDate(order.deliveryDate) : 'TBD'}</p>
                                   </div>
                                 </div>
                               </div>
@@ -438,13 +412,15 @@ export default function Dashboard() {
                             </div>
                             
                             <div className="flex space-x-3">
-                              <button className="px-4 py-2 bg-blue-600 rounded-lg text-white font-medium hover:bg-blue-700 transition-colors text-sm">
-                                View Details
-                              </button>
+                              <Link href={`/orders/${order.id}`}>
+                                <button className="px-4 py-2 bg-blue-600 rounded-lg text-white font-medium hover:bg-blue-700 transition-colors text-sm">
+                                  View Details
+                                </button>
+                              </Link>
                               <button className="px-4 py-2 bg-gray-700 rounded-lg text-white font-medium hover:bg-gray-600 transition-colors text-sm">
                                 Contact Developer
                               </button>
-                              {order.status === 'in-progress' && (
+                              {(order.status === 'development' || order.status === 'design') && (
                                 <button className="px-4 py-2 bg-gray-700 rounded-lg text-white font-medium hover:bg-gray-600 transition-colors text-sm">
                                   Request Changes
                                 </button>
@@ -496,16 +472,26 @@ export default function Dashboard() {
                         return (
                           <div 
                             key={meeting.id} 
-                            className="card-item bg-gray-800 bg-opacity-50 rounded-xl border border-gray-700 overflow-hidden shadow-lg p-6"
+                            className="bg-gray-800 bg-opacity-50 rounded-xl border border-gray-700 overflow-hidden shadow-lg p-6"
                           >
                             <div className="flex flex-col md:flex-row justify-between">
                               <div>
                                 <div className="flex items-center mb-2">
                                   <h3 className="text-xl font-bold mr-3">{meeting.title}</h3>
                                   <span className={`px-2 py-1 rounded-md text-xs font-semibold ${
-                                    isUpcoming ? 'bg-green-500 bg-opacity-90' : 'bg-gray-500 bg-opacity-90'
+                                    meeting.status === 'scheduled' && isUpcoming
+                                      ? 'bg-green-500 bg-opacity-90'
+                                      : meeting.status === 'completed'
+                                        ? 'bg-blue-500 bg-opacity-90'
+                                        : meeting.status === 'cancelled'
+                                          ? 'bg-red-500 bg-opacity-90'
+                                          : 'bg-gray-500 bg-opacity-90'
                                   }`}>
-                                    {isUpcoming ? 'Upcoming' : 'Past'}
+                                    {meeting.status === 'scheduled' && isUpcoming
+                                      ? 'Upcoming'
+                                      : meeting.status === 'scheduled' && !isUpcoming
+                                        ? 'Missed'
+                                        : meeting.status.charAt(0).toUpperCase() + meeting.status.slice(1)}
                                   </span>
                                 </div>
                                 <p className="text-gray-400 text-sm mb-1">
@@ -525,17 +511,22 @@ export default function Dashboard() {
                                 </div>
                                 
                                 <div className="flex space-x-3 mt-4 md:mt-0 md:justify-end">
-                                  {isUpcoming && (
+                                  {meeting.status === 'scheduled' && isUpcoming && (
                                     <>
-                                      <button className="px-4 py-2 bg-blue-600 rounded-lg text-white font-medium hover:bg-blue-700 transition-colors text-sm">
+                                      <a 
+                                        href={meeting.meetingUrl} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="px-4 py-2 bg-blue-600 rounded-lg text-white font-medium hover:bg-blue-700 transition-colors text-sm"
+                                      >
                                         Join Meeting
-                                      </button>
+                                      </a>
                                       <button className="px-4 py-2 bg-gray-700 rounded-lg text-white font-medium hover:bg-gray-600 transition-colors text-sm">
                                         Reschedule
                                       </button>
                                     </>
                                   )}
-                                  {!isUpcoming && (
+                                  {meeting.status === 'completed' && (
                                     <button className="px-4 py-2 bg-gray-700 rounded-lg text-white font-medium hover:bg-gray-600 transition-colors text-sm">
                                       View Notes
                                     </button>
@@ -576,22 +567,77 @@ export default function Dashboard() {
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full border border-gray-700">
             <h3 className="text-2xl font-bold mb-4">Schedule a Meeting</h3>
-            <form className="space-y-4">
+            <form 
+              className="space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                
+                // Get form data
+                const formData = {
+                  title: e.target.title.value,
+                  date: e.target.date.value,
+                  time: e.target.time.value,
+                  duration: parseInt(e.target.duration.value),
+                  developer: e.target.developer.value || null,
+                  notes: e.target.notes.value,
+                  type: 'other'
+                };
+                
+                // Combine date and time
+                const dateTime = new Date(`${formData.date}T${formData.time}`);
+                
+                // Format data for API
+                const meetingData = {
+                  title: formData.title,
+                  date: dateTime.toISOString(),
+                  duration: formData.duration,
+                  developer: formData.developer || 'Assigned Developer',
+                  notes: formData.notes,
+                  type: 'other'
+                };
+                
+                handleScheduleMeeting(meetingData);
+              }}
+            >
               <div>
-                <label className="block text-gray-300 mb-1">Meeting Topic</label>
-                <input type="text" className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="e.g. Design Review" />
+                <label htmlFor="title" className="block text-gray-300 mb-1">Meeting Topic</label>
+                <input 
+                  type="text" 
+                  id="title"
+                  name="title"
+                  className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  placeholder="e.g. Design Review" 
+                  required
+                />
               </div>
               <div>
-                <label className="block text-gray-300 mb-1">Date</label>
-                <input type="date" className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                <label htmlFor="date" className="block text-gray-300 mb-1">Date</label>
+                <input 
+                  type="date" 
+                  id="date"
+                  name="date"
+                  className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  required
+                />
               </div>
               <div>
-                <label className="block text-gray-300 mb-1">Time</label>
-                <input type="time" className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                <label htmlFor="time" className="block text-gray-300 mb-1">Time</label>
+                <input 
+                  type="time" 
+                  id="time"
+                  name="time"
+                  className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  required
+                />
               </div>
               <div>
-                <label className="block text-gray-300 mb-1">Duration</label>
-                <select className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <label htmlFor="duration" className="block text-gray-300 mb-1">Duration</label>
+                <select 
+                  id="duration"
+                  name="duration"
+                  className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                >
                   <option value="30">30 minutes</option>
                   <option value="45">45 minutes</option>
                   <option value="60">60 minutes</option>
@@ -599,17 +645,26 @@ export default function Dashboard() {
                 </select>
               </div>
               <div>
-                <label className="block text-gray-300 mb-1">Developer Preference</label>
-                <select className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <label htmlFor="developer" className="block text-gray-300 mb-1">Developer Preference</label>
+                <select 
+                  id="developer"
+                  name="developer"
+                  className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
                   <option value="">No preference</option>
-                  <option value="alex">Alex Johnson</option>
-                  <option value="sarah">Sarah Williams</option>
-                  <option value="mike">Mike Thompson</option>
+                  <option value="Alex Johnson">Alex Johnson</option>
+                  <option value="Sarah Williams">Sarah Williams</option>
+                  <option value="Mike Thompson">Mike Thompson</option>
                 </select>
               </div>
               <div>
-                <label className="block text-gray-300 mb-1">Notes</label>
-                <textarea className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-32" placeholder="Describe what you'd like to discuss..."></textarea>
+                <label htmlFor="notes" className="block text-gray-300 mb-1">Notes</label>
+                <textarea 
+                  id="notes"
+                  name="notes"
+                  className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-32" 
+                  placeholder="Describe what you'd like to discuss..."
+                ></textarea>
               </div>
               <div className="flex space-x-3 pt-4">
                 <button
@@ -620,14 +675,8 @@ export default function Dashboard() {
                   Cancel
                 </button>
                 <button
-                  type="button"
+                  type="submit"
                   className="flex-1 py-3 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 transition-colors font-semibold"
-                  onClick={() => {
-                    // In a real app, this would submit the form
-                    setShowScheduleModal(false);
-                    // Show success notification
-                    alert('Meeting scheduled successfully!');
-                  }}
                 >
                   Schedule
                 </button>

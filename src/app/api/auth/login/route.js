@@ -1,4 +1,3 @@
-// src/app/api/auth/login/route.js
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import User from '@/models/User';
@@ -53,11 +52,14 @@ export async function POST(request) {
       );
     }
 
-    // Create token
-    const token = createToken(user._id);
+    // Create token - Use await here since the function is now async
+    const token = await createToken(user._id);
 
-    // Set cookie
-    setTokenCookie(token);
+    // Set cookie - with await
+    await setTokenCookie(token);
+    
+    // Log for debugging
+    console.log('Login successful for user:', user.email, 'with role:', user.role);
 
     return NextResponse.json({
       success: true,

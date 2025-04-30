@@ -100,7 +100,7 @@ export default function ThreeSceneContent() {
         return () => window.removeEventListener('mousemove', handleMouseMove);
     }, [isMobile]);
 
-    const modelUrl = "/lapto.glb";
+    const modelUrl = "/laptop.glb";
 
     return (
         <>
@@ -114,7 +114,7 @@ export default function ThreeSceneContent() {
                 <Canvas
                     shadows
                     dpr={[1, 2]}
-                    camera={{ position: [0, 0, 300], fov: 40 }}
+                    camera={{ position: [0, 0, 7], fov: 40 }}
                     onCreated={(state) => {
                         state.gl.setClearColor(0x000000, 0);
                         setIsLoaded(true);

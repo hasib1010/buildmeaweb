@@ -16,6 +16,12 @@ export default function Login() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get('redirect') || '/dashboard';
+  const { user,  register } = useAuth();
+  useEffect(() => {
+    if (user) {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
   
   // Handle form submission
   const handleSubmit = async (e) => {
