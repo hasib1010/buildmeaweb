@@ -1,40 +1,40 @@
 // src/app/login/page.js
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { gsap } from 'gsap';
 import Navbar from '@/components/ui/Navbar';
 
-export default function Login() {
+function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login, loading, error, verificationRequired, verificationEmail, resendVerification } = useAuth();
-  
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get('redirect') || '/dashboard';
-  const { user,  register } = useAuth();
+  const { user, register } = useAuth();
   useEffect(() => {
     if (user) {
       router.push('/dashboard');
     }
   }, [user, router]);
-  
+
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Animate button loading state
     gsap.to('.login-btn', {
       scale: 0.95,
       duration: 0.1,
     });
-    
+
     const success = await login(email, password);
-    
+
     if (success) {
       // Animate success
       gsap.to('.login-form', {
@@ -53,7 +53,7 @@ export default function Login() {
         duration: 0.5,
         ease: 'power2.inOut',
       });
-      
+
       // Reset button
       gsap.to('.login-btn', {
         scale: 1,
@@ -61,11 +61,11 @@ export default function Login() {
       });
     }
   };
-  
+
   // Handle resend verification email
   const handleResendVerification = async () => {
     const success = await resendVerification();
-    
+
     if (success) {
       // Animate success
       gsap.to('.verification-alert', {
@@ -73,7 +73,7 @@ export default function Login() {
         borderColor: '#10B981',
         duration: 0.3,
       });
-      
+
       // Reset animation after 2 seconds
       setTimeout(() => {
         gsap.to('.verification-alert', {
@@ -84,11 +84,11 @@ export default function Login() {
       }, 2000);
     }
   };
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white">
       <Navbar />
-      
+
       <div className="container mx-auto px-4 pt-32 pb-16">
         <div className="max-w-md mx-auto">
           <div className="text-center mb-8">
@@ -99,7 +99,7 @@ export default function Login() {
               Sign in to your account to access your website projects
             </p>
           </div>
-          
+
           <div className="bg-gray-800 bg-opacity-50 rounded-xl border border-gray-700 p-8 shadow-lg login-form">
             {/* Verification Required Alert */}
             {verificationRequired && (
@@ -107,7 +107,7 @@ export default function Login() {
                 <p className="mb-2">
                   Your email ({verificationEmail}) has not been verified. Please check your inbox for a verification link.
                 </p>
-                <button 
+                <button
                   onClick={handleResendVerification}
                   className="text-blue-400 underline hover:text-blue-300"
                 >
@@ -115,14 +115,14 @@ export default function Login() {
                 </button>
               </div>
             )}
-            
+
             {/* Other Errors */}
             {error && !verificationRequired && (
               <div className="mb-6 p-4 bg-red-500 bg-opacity-20 border border-red-500 rounded-lg text-white">
                 {error}
               </div>
             )}
-            
+
             <form onSubmit={handleSubmit}>
               <div className="mb-6">
                 <label htmlFor="email" className="block text-gray-300 mb-2">
@@ -137,7 +137,7 @@ export default function Login() {
                   required
                 />
               </div>
-              
+
               <div className="mb-6">
                 <div className="flex justify-between mb-2">
                   <label htmlFor="password" className="text-gray-300">
@@ -156,7 +156,7 @@ export default function Login() {
                   required
                 />
               </div>
-              
+
               <button
                 type="submit"
                 disabled={loading}
@@ -167,7 +167,7 @@ export default function Login() {
                 ) : null}
                 {loading ? 'Signing In...' : 'Sign In'}
               </button>
-              
+
               <div className="mt-6 text-center text-gray-400">
                 Don't have an account?{' '}
                 <Link href="/register" className="text-blue-400 hover:text-blue-300">
@@ -179,5 +179,13 @@ export default function Login() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Page() {  
+  return (
+    <Suspense fallback={<div className="text-white text-center pt-32">Loading...</div>}>
+      <Login />
+    </Suspense>
   );
 }
